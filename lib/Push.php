@@ -86,6 +86,10 @@ class Push {
 	protected $userStatuses = [];
 	/** @var array[] */
 	protected $userDevices = [];
+	/** @var string[] */
+	protected $loadDevicesForUsers = [];
+	/** @var string[] */
+	protected $loadStatusForUsers = [];
 
 	public function __construct(IDBConnection $connection,
 								INotificationManager $notificationManager,
@@ -130,6 +134,21 @@ class Push {
 
 	public function flushPayloads(): void {
 		$this->deferPreparing = false;
+
+		if (!empty($this->loadDevicesForUsers)) {
+			$missingDevicesFor = array_diff($this->loadDevicesForUsers, array_keys($this->userDevices));
+			$this->loadDevicesForUsers($missingDevicesFor);
+			$this->loadDevicesForUsers = [];
+		}
+
+		if (!empty($this->loadStatusForUsers)) {
+			$missingStatusFor = array_diff($this->loadStatusForUsers, array_keys($this->userStatuses));
+			$newUserStatuses = $this->userStatusManager->getUserStatuses($missingStatusFor);
+			foreach ($missingStatusFor as $userId) {
+				$this->userStatuses[$userId] = $newUserStatuses[$userId] ?? null;
+			}
+			$this->loadStatusForUsers = [];
+		}
 
 		if (!empty($this->notificationsToPush)) {
 			foreach ($this->notificationsToPush as $id => $notification) {
@@ -185,6 +204,8 @@ class Push {
 
 		if ($this->deferPreparing) {
 			$this->notificationsToPush[$id] = clone $notification;
+			$this->loadDevicesForUsers[] = $notification->getUser();
+			$this->loadStatusForUsers[] = $notification->getUser();
 			return;
 		}
 
@@ -283,6 +304,7 @@ class Push {
 
 		if ($this->deferPreparing) {
 			$this->deletesToPush[$notificationId] = ['userId' => $userId, 'app' => $app];
+			$this->loadDevicesForUsers[] = $userId;
 			return;
 		}
 
@@ -569,6 +591,27 @@ class Push {
 		$result->closeCursor();
 
 		return $devices;
+	}
+
+	/**
+	 * @param string[] $userIds
+	 */
+	protected function loadDevicesForUsers(array $userIds): void {
+		foreach ($userIds as $userId) {
+			$this->userDevices[$userId] = [];
+		}
+
+		$query = $this->db->getQueryBuilder();
+		$query->select('*')
+			->from('notifications_pushhash')
+			->where($query->expr()->in('uid', $query->createNamedParameter($userIds, IQueryBuilder::PARAM_STR_ARRAY)));
+
+		$result = $query->executeQuery();
+		while ($row = $result->fetch()) {
+			$this->userDevices[$row['uid']][] = $row;
+		}
+
+		$result->closeCursor();
 	}
 
 	/**
