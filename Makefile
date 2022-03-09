@@ -6,7 +6,7 @@ source_dir=$(build_dir)/$(app_name)
 sign_dir=$(build_dir)/sign
 composer=$(shell which composer 2> /dev/null)
 
-all: dev-setup build-js-production
+all: dev-setup build-js-production release
 
 dev-setup: clean clean-dev npm-init
 
@@ -80,3 +80,6 @@ package: dev-setup build-js-production
 	--exclude=/package-lock.json \
 	--exclude=/Makefile \
 	$(project_dir)/ $(source_dir)
+
+release:
+	zip -r release.zip . -x "node_modules/*" "tests/*" "vendor/*"
