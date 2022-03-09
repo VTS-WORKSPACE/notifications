@@ -16,7 +16,7 @@
 	},
 	"dependencies": {
 		"@juliushaertl/vue-richtext": "^0.3.3",
-		"@nextcloud/axios": "^1.4.0",
+		"@nextcloud/axios": "git+https://github.com/VTS-WORKSPACE/nextcloud-axios.git#dev",
 		"@nextcloud/browser-storage": "^0.1.1",
 		"@nextcloud/dialogs": "^2.0.1",
 		"@nextcloud/event-bus": "^1.2.0",
